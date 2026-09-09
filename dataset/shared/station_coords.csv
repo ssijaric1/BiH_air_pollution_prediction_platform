@@ -1,0 +1,24 @@
+source,city,station,lat,lon,elev_m,station_type,code,precision
+fhz,Bihac,Bihac,44.807,15.866,244.0,Urbano pozadinska,BA0058A,official
+fhz,Livno,Livno,43.822,17.001,806.0,Urbano pozadinska,BA0057A,official
+fhz,Mostar,Mostar,43.348,17.794,97.0,Urbano pozadinska,BA0067A,official
+fhz,Sarajevo,Ambasada,43.8566,18.4004,540.0,unknown,,published
+fhz,Sarajevo,Bjelave,43.867,18.423,635.0,Urbano pozadinska,BA0029A,official
+fhz,Sarajevo,Hadzici,43.823,18.201,557.0,Urbana,BA0060A,official
+fhz,Sarajevo,Ilidza,43.83,18.31,509.0,Urbana,BA0043A,official
+fhz,Sarajevo,Ilijas,43.96,18.269,459.0,Urbano pozadinska,BA0050A,official
+fhz,Sarajevo,Isedlo,43.778,18.02,969.0,Regionalna pozadinska,BA0001G,official
+fhz,Sarajevo,Otoka,43.848,18.363,512.0,Urbana/saobraćajna,BA0042A,official
+fhz,Sarajevo,Vijecnica,43.859,18.434,554.0,Urbana/saobraćajna,BA0049A,official
+fhz,Sarajevo,Vogosca,43.9,18.342,496.0,Urbana,BA0061A,official
+fhz,Tuzla,Tuzla-BKC,44.534,18.661,231.0,Urbana,BA0032A,official
+fhz,Tuzla,Tuzla-Bukinje,44.523,18.6,214.0,Industrijska,BA0044A,official
+fhz,Tuzla,Tuzla-Skver,44.54,18.673,234.0,Urbana/saobraćajna,BA0031A,official
+fhz,Tuzla,Tuzla-Trnovac,44.542,18.689,299.0,Urbano pozadinska,BA0068A,official
+rhz,Banja Luka,Banja Luka,44.79804,17.20496,,Urbana pozadinska,,official
+rhz,Brod,Brod,45.135565,17.984798,,Urbana industrijska,,official
+rhz,Doboj,Doboj,44.7262,18.0891,,Urbana pozadinska,,official
+rhz,Gacko,Gacko,43.16458,18.535791,,Urbana pozadinska,,official
+rhz,Prijedor,Prijedor,44.971993,16.712734,,Urbana pozadinska,,official
+rhz,Trebinje,Trebinje,42.71408,18.33418,,Urbana pozadinska,,official
+rhz,Ugljevik,Ugljevik,44.684038,18.969576,,Industrijska,,official

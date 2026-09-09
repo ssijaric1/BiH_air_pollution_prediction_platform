@@ -1,0 +1,30 @@
+{
+  "train": {
+    "start": "2021-01-01 00:00",
+    "end": "2023-12-31 23:00"
+  },
+  "val": {
+    "start": "2024-01-01 00:00",
+    "end": "2024-12-31 23:00"
+  },
+  "excluded": {
+    "2025": "FHZ has no 2025 data; an RHZ-only year is not comparable"
+  },
+  "horizon_hours": 24,
+  "origin_stride_hours": 24,
+  "origin_hour_of_day": 0,
+  "masking": {
+    "rule": "score only where value is not NaN AND <pollutant>_filled is False",
+    "why": "gaps of up to 3 h were linearly interpolated during dataset build; scoring against them measures our own interpolation, not the model",
+    "filled_allowed_in_input": true,
+    "filled_allowed_in_target": false,
+    "min_real_target_hours": 12,
+    "min_real_context_hours_168": 1
+  },
+  "metrics": [
+    "mae",
+    "rmse",
+    "mase"
+  ],
+  "metric_note": "MAE and RMSE are per pollutant, in native units, and must never be averaged across pollutants - CO is mg/m3 and the rest are ug/m3. MASE is the only cross-pollutant summary."
+}

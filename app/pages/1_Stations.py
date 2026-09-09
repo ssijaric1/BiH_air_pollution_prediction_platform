@@ -20,11 +20,6 @@ panel = T.load_panel()
 fc = T.load_forecasts()
 
 st.markdown("# Monitoring stations")
-st.markdown(
-    '<p class="lede">Twenty-three stations across twelve cities, run by two separate '
-    'entity-level services. They differ enormously in what they measure and how '
-    'completely — which is the single biggest constraint on the forecasting.</p>',
-    unsafe_allow_html=True)
 
 POLLUTANTS = ["pm10", "pm25", "so2", "no2", "o3", "co"]
 

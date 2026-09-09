@@ -79,6 +79,15 @@ else:
     hover_extra = "coverage %{customdata[1]:.0f}%"
 
 has_value = df.value.notna() & (df.value > 0)
+# Three distinct states, which the earlier version wrongly collapsed into two:
+#   measured in 2024        -> coloured
+#   has the instrument but
+#   stopped before 2024     -> hollow marker, "no 2024 data"
+#   never had the instrument -> grey
+ever_col = f"{pollutant}_ever"
+df["ever"] = df.get(ever_col, pd.Series(False, index=df.index)).fillna(False)
+inactive = ~has_value & df.ever
+never = ~has_value & ~df.ever
 
 
 # --------------------------------------------------------------------------
@@ -107,7 +116,8 @@ T.cards([
 # map
 # --------------------------------------------------------------------------
 plot_df = df[has_value].copy()
-grey_df = df[~has_value].copy()
+grey_df = df[never].copy()
+off_df = df[inactive].copy()
 
 fig = go.Figure()
 
@@ -115,10 +125,21 @@ if not grey_df.empty:
     fig.add_trace(go.Scattermap(
         lat=grey_df.lat, lon=grey_df.lon, mode="markers",
         marker=dict(size=11, color="#c3ccd5"),
-        name="not measured here",
+        name="no instrument",
         customdata=np.stack([grey_df.station, grey_df.city], axis=-1),
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}"
-                      "<br>does not measure this pollutant<extra></extra>"))
+                      "<br>no instrument for this pollutant<extra></extra>"))
+
+if not off_df.empty:
+    last = off_df.last_seen.dt.strftime("%b %Y").fillna("unknown")
+    fig.add_trace(go.Scattermap(
+        lat=off_df.lat, lon=off_df.lon, mode="markers",
+        marker=dict(size=13, color="#e0a33e"),
+        name="stopped before 2024",
+        customdata=np.stack([off_df.station, off_df.city, last], axis=-1),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}"
+                      "<br>measured this pollutant, but stopped "
+                      "— last reading %{customdata[2]}<extra></extra>"))
 
 if not plot_df.empty:
     fig.add_trace(go.Scattermap(
@@ -147,8 +168,7 @@ if metric == "Forecast skill" and fc is None:
 # --------------------------------------------------------------------------
 st.markdown("### Station detail")
 
-COV_COLS = [f"{p}_coverage" for p in POLLUTANTS]
-alive = stations[stations[COV_COLS].fillna(0).sum(axis=1) > 0].station
+alive = stations[stations.active_2024].station
 opts = sorted(stations.station)
 # Default to a station that still reported in 2024 - one station (Ambasada)
 # stopped before the evaluation year and would otherwise open on an empty view.
@@ -159,11 +179,18 @@ pick = st.selectbox("Station", opts, index=default,
 row = stations[stations.station == pick].iloc[0]
 
 if pick not in set(alive):
+    ever_list = [T.POLLUTANT_LABELS[p] for p in POLLUTANTS
+                 if bool(row.get(f"{p}_ever", False))]
+    last_seen = row.get("last_seen")
+    when = (pd.Timestamp(last_seen).strftime("%d %B %Y")
+            if pd.notna(last_seen) else "an unknown date")
     st.markdown(
-        f'<div class="note"><b>{pick} stopped reporting before 2024.</b><br>'
-        'It is in the station register and contributed to training, but it has '
-        'no measurements in the evaluation year, so there is nothing to show '
-        'below.</div>', unsafe_allow_html=True)
+        f'<div class="note"><b>{pick} stopped reporting before the evaluation '
+        f'year.</b><br>Last reading {when}. It measured '
+        f'{", ".join(ever_list) if ever_list else "nothing"} while active, and '
+        'its data contributed to training, but it has no 2024 measurements — so '
+        'the coverage figures below, which describe 2024, are all zero.'
+        '</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([2, 3], gap="large")
 
@@ -187,9 +214,16 @@ with c2:
     cov_df = pd.DataFrame({"pollutant": list(cov), "coverage": list(cov.values())})
     bar = px.bar(cov_df, x="coverage", y="pollutant", orientation="h",
                  range_x=[0, 100], text=[f"{v:.0f}%" for v in cov_df.coverage])
-    bar.update_traces(marker_color=[T.ACCENT if v > 0 else "#d7dee5"
-                                    for v in cov_df.coverage],
-                      textposition="outside", cliponaxis=False)
+    colours = []
+    for p, v in zip(POLLUTANTS, cov_df.coverage):
+        if v > 0:
+            colours.append(T.ACCENT)
+        elif bool(row.get(f"{p}_ever", False)):
+            colours.append("#e0a33e")      # had the instrument, not in 2024
+        else:
+            colours.append("#d7dee5")      # never had it
+    bar.update_traces(marker_color=colours, textposition="outside",
+                      cliponaxis=False)
     bar.update_layout(
         height=260, margin=dict(l=0, r=30, t=24, b=0),
         title=dict(text="2024 coverage by pollutant", font=dict(size=13)),
@@ -197,15 +231,14 @@ with c2:
         xaxis=dict(title="", gridcolor=T.LINE, ticksuffix="%"),
         yaxis=dict(title="", autorange="reversed"))
     st.plotly_chart(bar, width="stretch")
-    st.caption("A zero here usually means the station has no instrument for that "
-               "pollutant, not that the data went missing.")
+    st.caption("Grey means the station has no instrument for that pollutant. "
+               "Amber means it measured it at some point, but not during 2024.")
 
 
 # --------------------------------------------------------------------------
 # the year at this station
 # --------------------------------------------------------------------------
-avail = [p for p in POLLUTANTS
-         if pd.notna(row.get(f"{p}_coverage")) and row.get(f"{p}_coverage") > 0]
+avail = [p for p in POLLUTANTS if float(row.get(f"{p}_coverage", 0) or 0) > 0]
 if avail:
     st.markdown("### The measured year")
     show_p = st.multiselect(

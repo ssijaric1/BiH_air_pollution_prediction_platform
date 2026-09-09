@@ -57,19 +57,50 @@ def build_panel() -> pd.DataFrame:
     return df.sort_values(["station", "datetime"], ignore_index=True)
 
 
-def build_stations(panel: pd.DataFrame) -> pd.DataFrame:
+def build_stations(panel: pd.DataFrame, full: pd.DataFrame) -> pd.DataFrame:
+    """Coordinates, plus two different things that must not be conflated:
+
+    *_coverage  - share of 2024 hours with a real reading. The app shows the
+                  evaluation year, so its coverage numbers describe that year.
+    *_ever      - whether the station ever measured the pollutant, over the
+                  whole 2021-2024 record. A station that has an instrument but
+                  stopped reporting before 2024 has coverage 0 and ever True.
+    active_2024 - whether the station reported at all in 2024.
+
+    Ambasada is why this distinction exists: it is the US embassy PM2.5 monitor,
+    with two full years of readings that end in January 2023. Judged on 2024
+    alone it looks like a station with no instruments, which is wrong.
+    """
     st = pd.read_csv(COORDS)
-    # Coverage over the evaluation year only - that is the period the app shows,
-    # so a station's headline coverage should describe the same window.
+
     y2024 = panel[panel.datetime.dt.year == 2024]
     cov = (y2024.groupby("station", observed=True)[POLLUTANTS]
                 .apply(lambda g: g.notna().mean() * 100)
                 .round(1)
                 .add_suffix("_coverage")
                 .reset_index())
-    out = st.merge(cov, on="station", how="left")
+
+    ever = (full.groupby("station", observed=True)[POLLUTANTS]
+                .apply(lambda g: g.notna().any())
+                .add_suffix("_ever")
+                .reset_index())
+
+    active = (y2024.groupby("station", observed=True).size()
+                   .gt(0).rename("active_2024").reset_index())
+
+    out = (st.merge(cov, on="station", how="left")
+             .merge(ever, on="station", how="left")
+             .merge(active, on="station", how="left"))
+    out["active_2024"] = out.active_2024.fillna(False).astype(bool)
+    for p in POLLUTANTS:
+        out[f"{p}_coverage"] = out[f"{p}_coverage"].fillna(0.0)
+        out[f"{p}_ever"] = out[f"{p}_ever"].fillna(False).astype(bool)
     out["station_type"] = out.station_type.fillna("unknown")
-    return out
+
+    # Last hour on record, so the app can say when a dead station stopped.
+    last = (full.groupby("station", observed=True).datetime.max()
+                .rename("last_seen").reset_index())
+    return out.merge(last, on="station", how="left")
 
 
 def slim_forecasts() -> pd.DataFrame | None:
@@ -107,7 +138,10 @@ def main() -> int:
     panel.to_parquet(p, index=False, compression="zstd")
     report("panel.parquet", p, panel)
 
-    stations = build_stations(panel)
+    # "ever measured" has to be judged on the whole record, not the slim panel.
+    full = pd.read_csv(CLEAN, usecols=["station", "datetime"] + POLLUTANTS,
+                       parse_dates=["datetime"])
+    stations = build_stations(panel, full)
     p = OUT / "stations.parquet"
     stations.to_parquet(p, index=False)
     report("stations.parquet", p, stations)

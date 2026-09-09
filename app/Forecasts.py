@@ -59,11 +59,30 @@ with st.sidebar:
         format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y"))
 
     st.markdown("### Show")
-    shown = [m for m in MODELS
-             if st.checkbox(T.MODEL_LABELS[m], value=m in ("chronos2", "ensemble"),
-                            key=f"show_{m}")]
+    # A model that was never trained on this pollutant has no column to draw.
+    # Disable it rather than offering a checkbox that does nothing.
+    available = {m: bool(sub[m].notna().any()) for m in MODELS}
+
+    shown = []
+    for m in MODELS:
+        ok = available[m]
+        label = T.MODEL_LABELS[m] if ok else f"~~{T.MODEL_LABELS[m]}~~"
+        picked = st.checkbox(
+            label, value=ok and m in ("chronos2", "ensemble"),
+            key=f"show_{m}_{pollutant}", disabled=not ok,
+            help=None if ok else
+            f"Not trained for {T.POLLUTANT_LABELS.get(pollutant, pollutant)} — "
+            "the spatial model covers PM10 and PM2.5 only.")
+        if ok and picked:
+            shown.append(m)
+
     band = st.checkbox("Uncertainty band (10th–90th pct)", value=True)
     st.caption("Bands are available for Chronos-2 and the ensemble.")
+
+    if not all(available.values()):
+        off = ", ".join(T.MODEL_LABELS[m] for m in MODELS if not available[m])
+        st.caption(f"Unavailable for "
+                   f"{T.POLLUTANT_LABELS.get(pollutant, pollutant)}: {off}.")
 
 w = sub[sub.origin == origin].sort_values("hour")
 if w.empty:
@@ -94,6 +113,7 @@ def window_scores(col: str) -> dict[str, float]:
 
 
 scores = {m: window_scores(m) for m in MODELS if w[m].notna().any()}
+scores = {m: v for m, v in scores.items() if np.isfinite(v["mase"])}
 best = min(scores, key=lambda m: scores[m]["mase"]) if scores else None
 
 card_items = [("Station", station, f"{w.city.iloc[0]}"),

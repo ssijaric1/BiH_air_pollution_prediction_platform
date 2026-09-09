@@ -247,7 +247,7 @@ if rows:
                        for n in summary.model]],
         text=[f"{v:.3f}" for v in summary["MASE"]], textposition="outside",
         hovertemplate="%{y}<br>MASE %{x:.3f}<extra></extra>"))
-    bar.add_vline(x=1.0, line=dict(color="#b3402a", width=1.4, dash="dash"))
+    bar.add_vline(x=1.0, line=dict(color="#d4803f", width=1.4, dash="dash"))
     bar.update_layout(
         height=60 + 42 * len(summary), margin=dict(l=10, r=60, t=10, b=10),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",

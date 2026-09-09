@@ -13,19 +13,22 @@ import streamlit as st
 DATA = Path(__file__).resolve().parent / "data"
 
 # The model palette is fixed here so a model is the same colour on every chart.
-INK = "#0f1720"
-MUTED = "#6b7a8c"
-LINE = "#dbe3ea"
-SURFACE = "#ffffff"
-CANVAS = "#f5f7f9"
-ACCENT = "#1f5c8b"
+# The app is dark by default and stays dark - a single committed palette rather
+# than two half-tuned ones, which is what produced black-on-charcoal text.
+INK = "#e8edf2"          # primary text
+MUTED = "#8d9aa8"        # secondary text, context lines
+LINE = "#2b343d"         # borders and chart gridlines
+SURFACE = "#1c232a"      # cards, sidebar, panels
+CANVAS = "#141a20"       # page background
+ACCENT = "#4a93cc"       # blue
+ACCENT_WARM = "#d4803f"  # orange
 
 MODEL_COLORS = {
-    "chronos2": "#1f5c8b",
-    "chronos2_nbr": "#3d86bd",
-    "ensemble": "#c2703a",
-    "gnn": "#5b8c5a",
-    "diurnal7": "#9aa7b4",
+    "chronos2": "#4a93cc",
+    "chronos2_nbr": "#7fb8e0",
+    "ensemble": "#d4803f",
+    "gnn": "#6faa6d",
+    "diurnal7": "#8d9aa8",
 }
 MODEL_LABELS = {
     "chronos2": "Chronos-2",
@@ -43,17 +46,17 @@ UNITS["co"] = "mg/m³"
 
 CSS = f"""
 <style>
-  .stApp {{ background: {CANVAS}; }}
+  .stApp {{ background: {CANVAS}; color: {INK}; }}
   #MainMenu, footer, header {{ visibility: hidden; }}
   .block-container {{ padding-top: 2.2rem; max-width: 1250px; }}
 
-  h1, h2, h3 {{ color: {INK}; letter-spacing: -.02em; font-weight: 650; }}
+  h1, h2, h3, h4, h5 {{ color: {INK}; letter-spacing: -.02em; font-weight: 650; }}
   h1 {{ font-size: 1.85rem; margin-bottom: .15rem; }}
+  p, li, label, .stMarkdown {{ color: {INK}; }}
 
   .lede {{ color: {MUTED}; font-size: .95rem; margin: 0 0 1.4rem 0;
            max-width: 62ch; line-height: 1.55; }}
 
-  /* metric cards */
   .cards {{ display: flex; gap: .8rem; flex-wrap: wrap; margin: .2rem 0 1.3rem; }}
   .card {{ background: {SURFACE}; border: 1px solid {LINE}; border-radius: 12px;
            padding: .85rem 1.1rem; flex: 1 1 150px; min-width: 140px; }}
@@ -62,38 +65,57 @@ CSS = f"""
   .card .v {{ color: {INK}; font-size: 1.5rem; font-weight: 660;
               line-height: 1.25; margin-top: .18rem; }}
   .card .s {{ color: {MUTED}; font-size: .78rem; }}
-  .card.hi {{ border-color: {ACCENT}; box-shadow: 0 0 0 1px {ACCENT}22; }}
+  .card.hi {{ border-color: {ACCENT}; box-shadow: 0 0 0 1px {ACCENT}33; }}
 
   .panel {{ background: {SURFACE}; border: 1px solid {LINE};
             border-radius: 14px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }}
 
-  .note {{ background: #fff8e6; border: 1px solid #f0dca8; color: #6b5316;
+  .note {{ background: #2a2318; border: 1px solid #4a3d22; color: #e8c98a;
            border-radius: 10px; padding: .8rem 1rem; font-size: .87rem;
            line-height: 1.5; }}
+  .note b {{ color: #f2dda8; }}
 
   [data-testid="stSidebar"] {{ background: {SURFACE}; border-right: 1px solid {LINE}; }}
   [data-testid="stSidebar"] .block-container {{ padding-top: 1.4rem; }}
+  [data-testid="stCaptionContainer"], .stCaption {{ color: {MUTED} !important; }}
 
   .stTabs [data-baseweb="tab-list"] {{ gap: .3rem; border-bottom: 1px solid {LINE}; }}
-  .stTabs [data-baseweb="tab"] {{ font-size: .9rem; font-weight: 550; }}
+  .stTabs [data-baseweb="tab"] {{ font-size: .9rem; font-weight: 550; color: {MUTED}; }}
+  .stTabs [aria-selected="true"] {{ color: {INK}; }}
 
   div[data-testid="stDataFrame"] {{ border: 1px solid {LINE}; border-radius: 10px; }}
-
-  @media (prefers-color-scheme: dark) {{
-    .stApp {{ background: #10161c; }}
-    h1, h2, h3 {{ color: #e8eef4; }}
-    .lede, .card .k, .card .s {{ color: #93a3b3; }}
-    .card, .panel {{ background: #18212a; border-color: #263340; }}
-    .card .v {{ color: #e8eef4; }}
-    [data-testid="stSidebar"] {{ background: #18212a; border-color: #263340; }}
-  }}
 </style>
 """
+
+
+def _register_template() -> None:
+    """One plotly template for the whole app, so no chart carries default
+    (dark-on-dark) text or gridlines."""
+    import plotly.graph_objects as go
+    import plotly.io as pio
+
+    pio.templates["bih"] = go.layout.Template(layout=dict(
+        font=dict(color=INK, size=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        title=dict(font=dict(color=INK, size=15)),
+        xaxis=dict(gridcolor=LINE, linecolor=LINE, zerolinecolor=LINE,
+                   tickfont=dict(color=MUTED), title=dict(font=dict(color=MUTED))),
+        yaxis=dict(gridcolor=LINE, linecolor=LINE, zerolinecolor=LINE,
+                   tickfont=dict(color=MUTED), title=dict(font=dict(color=MUTED))),
+        legend=dict(font=dict(color=MUTED), bgcolor="rgba(0,0,0,0)"),
+        hoverlabel=dict(bgcolor=SURFACE, bordercolor=LINE,
+                        font=dict(color=INK)),
+        coloraxis=dict(colorbar=dict(tickfont=dict(color=MUTED),
+                                     title=dict(font=dict(color=MUTED)))),
+    ))
+    pio.templates.default = "bih"
 
 
 def setup(title: str) -> None:
     st.set_page_config(page_title=f"{title} · BiH Air Quality",
                        page_icon="🌫️", layout="wide")
+    _register_template()
     st.markdown(CSS, unsafe_allow_html=True)
 
 

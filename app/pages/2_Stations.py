@@ -124,7 +124,7 @@ fig = go.Figure()
 if not grey_df.empty:
     fig.add_trace(go.Scattermap(
         lat=grey_df.lat, lon=grey_df.lon, mode="markers",
-        marker=dict(size=11, color="#c3ccd5"),
+        marker=dict(size=11, color="#4a555f"),
         name="no instrument",
         customdata=np.stack([grey_df.station, grey_df.city], axis=-1),
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}"
@@ -134,7 +134,7 @@ if not off_df.empty:
     last = off_df.last_seen.dt.strftime("%b %Y").fillna("unknown")
     fig.add_trace(go.Scattermap(
         lat=off_df.lat, lon=off_df.lon, mode="markers",
-        marker=dict(size=13, color="#e0a33e"),
+        marker=dict(size=13, color="#d4803f"),
         name="stopped before 2024",
         customdata=np.stack([off_df.station, off_df.city, last], axis=-1),
         hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}"
@@ -155,7 +155,7 @@ if not plot_df.empty:
                       "%{customdata[3]}<br>" + hover_extra + "<extra></extra>"))
 
 fig.update_layout(
-    map=dict(style="carto-positron", center=dict(lat=44.1, lon=17.8), zoom=6.5),
+    map=dict(style="carto-darkmatter", center=dict(lat=44.1, lon=17.8), zoom=6.5),
     height=520, margin=dict(l=0, r=0, t=0, b=0), showlegend=False)
 st.plotly_chart(fig, width="stretch")
 
@@ -219,9 +219,9 @@ with c2:
         if v > 0:
             colours.append(T.ACCENT)
         elif bool(row.get(f"{p}_ever", False)):
-            colours.append("#e0a33e")      # had the instrument, not in 2024
+            colours.append(T.ACCENT_WARM)      # had the instrument, not in 2024
         else:
-            colours.append("#d7dee5")      # never had it
+            colours.append("#4a555f")      # never had it
     bar.update_traces(marker_color=colours, textposition="outside",
                       cliponaxis=False)
     bar.update_layout(
@@ -252,7 +252,7 @@ if avail:
         daily = (series.set_index("datetime")[show_p]
                        .resample("D").mean().reset_index())
         ts = go.Figure()
-        palette = ["#1f5c8b", "#c2703a", "#5b8c5a", "#8b5ea6", "#b3402a", "#3d86bd"]
+        palette = ["#1f5c8b", "#c2703a", "#5b8c5a", "#a97fc4", "#cf6b5a", "#7fb8e0"]
         for i, p in enumerate(show_p):
             ts.add_trace(go.Scatter(
                 x=daily.datetime, y=daily[p], name=T.POLLUTANT_LABELS[p],

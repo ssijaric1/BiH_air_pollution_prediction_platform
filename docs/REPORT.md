@@ -20,7 +20,7 @@ Two secondary findings matter for how the result should be read. First, **weathe
 are worth about five times more than spatial covariates**: adding temperature, wind and
 humidity improves Chronos by 4.8–5.9 %, while adding neighbouring stations improves it by
 2.1 %. Second, the two bespoke deep-learning tracks — a spatial graph neural network and an
-xLSTM — did not beat the foundation model. The GNN reached MASE 0.916, better than the
+xLSTM — did not beat the foundation model. The GNN reached MASE 0.935, better than the
 baselines but clearly behind Chronos; the xLSTM was stable on PM2.5 and diverged on everything
 else. Both are reported here as they came out.
 
@@ -366,11 +366,20 @@ Results, PM10 and PM2.5 only:
 | PM2.5 | 4,211 | 13.60 | 25.20 | 1.023 |
 | PM10 | 5,613 | 16.07 | 28.29 | 0.970 |
 
-In the final integrated evaluation the GNN scores MASE 0.916 overall — better than every
-baseline, clearly behind Chronos-2's 0.765. Its distinguishing strength is **calibration**: a
-WQL of 0.0649 against Chronos-2's 0.1445, better by more than a factor of two. If the
-downstream use is the probability of exceeding a regulatory threshold rather than a point
-forecast, that difference is more valuable than the MASE gap suggests.
+In the final integrated evaluation the GNN scores MASE 0.935 overall — better than every
+baseline, clearly behind Chronos-2's 0.765.
+
+Its distinguishing strength is **calibration**. On an earlier run it reached a weighted
+quantile loss of 0.0649 against Chronos-2's 0.1445, better by more than a factor of two. If
+the downstream use is the probability of exceeding a regulatory threshold rather than a point
+forecast, that difference is more valuable than the MASE gap suggests. The figure is not
+quoted in the results table below because the current run's forecast export carries the GNN
+as a point prediction only, so its WQL was not recomputed alongside the rest.
+
+**The GNN varies noticeably between runs.** Re-running the pipeline from a fresh
+initialisation moved it from 0.9161 to 0.9352 — a spread of about 0.02, which is roughly five
+times the entire gap between the three Chronos variants. The numbers reported here are from
+the run whose forecasts are published with this repository.
 
 ### 4.3 xLSTM (`notebooks/06_xlstm/`) — a negative result
 
@@ -430,21 +439,23 @@ All models, all 31,688 frozen 2024 windows, 98 station-pollutant series:
 | Model | MASE | MAE | WQL | vs. t-24 |
 |---|---:|---:|---:|---:|
 | `chronos2_nbr` | **0.7591** | 7.090 | 0.1445 | +29.5 % |
-| `ensemble` (Chronos-2 + GNN) | 0.7620 | **7.084** | 0.1446 | +29.2 % |
+| `ensemble` (Chronos-2 + GNN) | 0.7625 | **7.090** | 0.1446 | +29.2 % |
 | `chronos2` | 0.7649 | 7.138 | 0.1449 | +28.9 % |
-| `gnn` | 0.9161 | 11.809 | **0.0649** | +14.9 % |
+| `gnn` | 0.9352 | 11.865 | — | +13.1 % |
 | `diurnal7_reference` | 1.0706 | 10.656 | — | +0.6 % |
 | `persistence_t24` | 1.0766 | 10.440 | — | 0 |
 | `persistence_last` | 1.2823 | 12.244 | — | −19.1 % |
 
 **By regime.** Heating season is harder than non-heating for every model
-(Chronos-2 0.787 vs. 0.743; GNN 0.898 vs. 0.934 — the GNN is the one model that does *not*
-follow this pattern, doing relatively better in winter).
+(Chronos-2 0.787 vs. 0.743; GNN 0.904 vs. 0.965 — the GNN is the one model that does *not*
+follow this pattern, doing relatively better in the heating season).
 
-**By season.** Spring easiest (0.643), autumn hardest (0.890) for Chronos-2.
+**By season.** Spring easiest (0.643), autumn hardest (0.890) for Chronos-2. The GNN follows
+the same shape more steeply: winter 0.784, spring 0.850, summer 1.044, autumn 1.099 — it is
+the only model that falls below the naive baseline in summer and autumn.
 
 **On the 8,473 windows the GNN covers**, where the blend can actually do something, the ordering
-tightens: ensemble 0.7473, `chronos2_nbr` 0.7499, `chronos2` 0.7581.
+tightens: ensemble 0.7490, `chronos2_nbr` 0.7499, `chronos2` 0.7581.
 
 ### How to read the top three rows
 
@@ -456,8 +467,9 @@ Two specific pieces of evidence support treating them as a tie:
    0.7294). A sign flip across years on a 0.03 % gap is the signature of noise, not of a real
    effect that would generalise.
 2. The `ensemble` is the only one of the three whose advantage is not circular: its weights
-   were fitted on 2023 and then beat their own base out-of-sample on 2024, by +0.38 %. It is
-   also first on MAE (7.084).
+   were fitted on 2023 and then beat their own base out-of-sample on 2024, by +0.31 %. It is
+   also first on MAE, though only just — 7.0903 against 7.0904 for `chronos2_nbr`, a margin
+   far too thin to carry any weight.
 
 The defensible summary is therefore: **Chronos-2 is the result; the choice among its three
 variants is not resolved by this evaluation.** Quoting any one of them as decisively best would
@@ -489,7 +501,7 @@ the entire gap between the best and worst *models*. Improving instrument uptime 
 buy more forecast accuracy than any further modelling work.
 
 **5. Point accuracy and uncertainty calibration come apart.** The GNN is the weakest learned
-model on MASE and the strongest on WQL by more than 2×. Which model is "best" therefore depends
+model on MASE and, on an earlier run, the strongest on WQL by more than 2×. Which model is "best" therefore depends
 on the downstream decision: point forecast, or exceedance probability.
 
 **6. Autumn and the heating season are where the models struggle.** Consistent across every
@@ -513,8 +525,8 @@ is more useful with them in it.
   `chronos2` by construction.
 - **The GNN was not run to completion across all partitions.** The notebook's own next-steps
   list includes looping over every partition, adding `sparse`-status stations, and a
-  season-conditioned breakdown. Its 0.916 should be read as a first full result, not a tuned
-  ceiling.
+  season-conditioned breakdown. Its 0.935 should be read as a first full result, not a tuned
+  ceiling — and one that moves by about 0.02 between training runs.
 - **The xLSTM instability was diagnosed but not fixed.** The divergence is understood
   (unbounded MASE amplification on windows with a near-zero denominator, plus training
   instability on some series); it was not resolved.

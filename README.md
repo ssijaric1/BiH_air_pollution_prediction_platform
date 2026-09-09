@@ -35,9 +35,9 @@ MASE 1.0 is the in-context seasonal-naive forecast.
 | Model | MASE | MAE | WQL | vs. `persistence_t24` |
 |---|---:|---:|---:|---:|
 | `chronos2_nbr` — Chronos-2 + neighbour covariates | **0.7591** | 7.090 | 0.1445 | **+29.5 %** |
-| `ensemble` — Chronos-2 + GNN blend | 0.7620 | **7.084** | 0.1446 | +29.2 % |
+| `ensemble` — Chronos-2 + GNN blend | 0.7625 | **7.090** | 0.1446 | +29.2 % |
 | `chronos2` — Chronos-2, weather covariates | 0.7649 | 7.138 | 0.1449 | +28.9 % |
-| `gnn` — ConvLSTM → GAT spatial model | 0.9161 | 11.809 | **0.0649** | +14.9 % |
+| `gnn` — ConvLSTM → GAT spatial model | 0.9352 | 11.865 | — | +13.1 % |
 | `diurnal7_reference` — 7-day diurnal climatology | 1.0706 | 10.656 | — | +0.6 % |
 | `persistence_t24` — value 24 h ago (baseline) | 1.0766 | 10.440 | — | 0 |
 | `persistence_last` — last observed value | 1.2823 | 12.244 | — | −19.1 % |
@@ -55,8 +55,10 @@ regimes, all four seasons — which is stronger evidence than the headline numbe
 
 ### Where the GNN earns its place
 
-The GNN loses clearly on point accuracy (MASE 0.916 vs. 0.765) but has by far the best
-**weighted quantile loss** (0.0649 vs. 0.1445), i.e. much better-calibrated uncertainty. It also
+The GNN loses clearly on point accuracy (MASE 0.935 vs. 0.765) but has by far the best
+**weighted quantile loss** — 0.0649 against 0.1445 on an earlier run, i.e. much
+better-calibrated uncertainty, though that figure has not been recomputed for the current
+run. Its MASE also moves by about 0.02 between training runs, so treat it as approximate. It also
 only covers PM10 and PM2.5, so in the blend it can only affect those two pollutants — the
 ensemble's CO / NO₂ / O₃ / SO₂ numbers are identical to plain Chronos-2 by construction.
 
@@ -169,12 +171,12 @@ Banja Luka, 280 km apart, just to fill slots).
 own verdict flags this as within noise and recommends reporting Chronos alone.
 
 **4. Autumn is the hard season.** Every model degrades in autumn (Chronos-2 0.890, GNN 1.096)
-and does best in spring (0.643 / 0.793). The heating season is harder than the non-heating
-season for every model.
+and does best in spring (0.643 / 0.850). The heating season is harder than the non-heating
+season for every model except the GNN, which reverses it.
 
 **5. Uncertainty and point accuracy come apart.** The GNN is the worst of the learned models on
-MASE and the best on WQL by a factor of two — worth knowing if the downstream use is threshold
-exceedance probability rather than a point forecast.
+MASE and, on an earlier run, the best on WQL by a factor of two — worth knowing if the
+downstream use is threshold exceedance probability rather than a point forecast.
 
 ---
 
@@ -244,6 +246,24 @@ missing.
 Dependencies are split deliberately: `requirements.txt` holds only what the app imports,
 so Streamlit Community Cloud can build it; the modelling stack is in
 `requirements-notebooks.txt`.
+
+### Deploying it
+
+The repository is set up to deploy as-is. Everything the app reads lives in `app/data/`
+and is committed, so there is nothing to upload separately.
+
+1. Push to GitHub.
+2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
+3. **Create app** → **Deploy a public app from a repo**, then set:
+   - Repository: your fork of this repo
+   - Branch: `main`
+   - Main file path: **`app/Forecasts.py`**
+4. Deploy. The first build takes a couple of minutes.
+
+Two details that matter. The theme lives in `.streamlit/config.toml` at the **repository
+root**, not next to the app — Streamlit reads project config relative to the working
+directory, which on Cloud is the repo root. And `requirements.txt` must stay app-only;
+adding `torch` would exceed the free tier's build limits.
 
 ---
 

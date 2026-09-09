@@ -27,3 +27,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local virtualenv used for the app
+.venv/

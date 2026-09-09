@@ -19,6 +19,7 @@ than a seasonal-naive baseline, across all six pollutants and all four seasons.*
 - [Models](#models)
 - [Findings](#findings)
 - [Repository layout](#repository-layout)
+- [The app](#the-app)
 - [Reproducing](#reproducing)
 - [Data availability](#data-availability)
 
@@ -34,9 +35,9 @@ MASE 1.0 is the in-context seasonal-naive forecast.
 | Model | MASE | MAE | WQL | vs. `persistence_t24` |
 |---|---:|---:|---:|---:|
 | `chronos2_nbr` — Chronos-2 + neighbour covariates | **0.7591** | 7.090 | 0.1445 | **+29.5 %** |
-| `ensemble` — Chronos-2 + GNN blend | 0.7620 | **7.084** | 0.1446 | +29.2 % |
+| `ensemble` — Chronos-2 + GNN blend | 0.7625 | **7.090** | 0.1446 | +29.2 % |
 | `chronos2` — Chronos-2, weather covariates | 0.7649 | 7.138 | 0.1449 | +28.9 % |
-| `gnn` — ConvLSTM → GAT spatial model | 0.9161 | 11.809 | **0.0649** | +14.9 % |
+| `gnn` — ConvLSTM → GAT spatial model | 0.9352 | 11.865 | — | +13.1 % |
 | `diurnal7_reference` — 7-day diurnal climatology | 1.0706 | 10.656 | — | +0.6 % |
 | `persistence_t24` — value 24 h ago (baseline) | 1.0766 | 10.440 | — | 0 |
 | `persistence_last` — last observed value | 1.2823 | 12.244 | — | −19.1 % |
@@ -54,8 +55,10 @@ regimes, all four seasons — which is stronger evidence than the headline numbe
 
 ### Where the GNN earns its place
 
-The GNN loses clearly on point accuracy (MASE 0.916 vs. 0.765) but has by far the best
-**weighted quantile loss** (0.0649 vs. 0.1445), i.e. much better-calibrated uncertainty. It also
+The GNN loses clearly on point accuracy (MASE 0.935 vs. 0.765) but has by far the best
+**weighted quantile loss** — 0.0649 against 0.1445 on an earlier run, i.e. much
+better-calibrated uncertainty, though that figure has not been recomputed for the current
+run. Its MASE also moves by about 0.02 between training runs, so treat it as approximate. It also
 only covers PM10 and PM2.5, so in the blend it can only affect those two pollutants — the
 ensemble's CO / NO₂ / O₃ / SO₂ numbers are identical to plain Chronos-2 by construction.
 
@@ -168,12 +171,12 @@ Banja Luka, 280 km apart, just to fill slots).
 own verdict flags this as within noise and recommends reporting Chronos alone.
 
 **4. Autumn is the hard season.** Every model degrades in autumn (Chronos-2 0.890, GNN 1.096)
-and does best in spring (0.643 / 0.793). The heating season is harder than the non-heating
-season for every model.
+and does best in spring (0.643 / 0.850). The heating season is harder than the non-heating
+season for every model except the GNN, which reverses it.
 
 **5. Uncertainty and point accuracy come apart.** The GNN is the worst of the learned models on
-MASE and the best on WQL by a factor of two — worth knowing if the downstream use is threshold
-exceedance probability rather than a point forecast.
+MASE and, on an earlier run, the best on WQL by a factor of two — worth knowing if the
+downstream use is threshold exceedance probability rather than a point forecast.
 
 ---
 
@@ -193,6 +196,8 @@ exceedance probability rather than a point forecast.
 │   └── 07_ensemble/     01 prototype → 02 full  ← final results table lives here
 ├── dataset/
 │   └── shared/          Frozen experiment definition (tracked in git)
+├── app/                 Streamlit app (app.py + pages/, data in app/data/)
+├── scripts/             prepare_app_data.py — builds the app's data files
 ├── images/              README figures
 └── docs/REPORT.md       Full technical report
 ```
@@ -212,18 +217,68 @@ exceedance probability rather than a point forecast.
 
 ---
 
+## The app
+
+An interactive Streamlit app for exploring the forecasts and the monitoring network.
+
+```bash
+pip install -r requirements.txt
+python scripts/prepare_app_data.py
+streamlit run app/Forecasts.py
+```
+
+Two pages. **Forecast viewer** — pick a station, pollutant and day, and see what each
+model predicted for the next 24 hours against what was actually measured, with the
+10th–90th percentile band, per-hour error, and how that series scores across the whole
+year. **Stations** — the 23 stations on a map, coloured by coverage or by forecast skill,
+with a detail view per station.
+
+`scripts/prepare_app_data.py` builds the small parquet files the app reads. It slims the
+160 MB panel to the evaluation period and casts to float32, giving about 4.5 MB — small
+enough to commit and deploy.
+
+The forecasts themselves come from the final cell of
+`notebooks/07_ensemble/02_ensemble_full.ipynb`, which exports every model's predictions
+to `forecasts.parquet`. Put that file in `results/` and re-run the prepare script. Without
+it the app still runs — the station map works, and the forecast viewer explains what is
+missing.
+
+Dependencies are split deliberately: `requirements.txt` holds only what the app imports,
+so Streamlit Community Cloud can build it; the modelling stack is in
+`requirements-notebooks.txt`.
+
+### Deploying it
+
+The repository is set up to deploy as-is. Everything the app reads lives in `app/data/`
+and is committed, so there is nothing to upload separately.
+
+1. Push to GitHub.
+2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
+3. **Create app** → **Deploy a public app from a repo**, then set:
+   - Repository: your fork of this repo
+   - Branch: `main`
+   - Main file path: **`app/Forecasts.py`**
+4. Deploy. The first build takes a couple of minutes.
+
+Two details that matter. The theme lives in `.streamlit/config.toml` at the **repository
+root**, not next to the app — Streamlit reads project config relative to the working
+directory, which on Cloud is the repo root. And `requirements.txt` must stay app-only;
+adding `torch` would exceed the free tier's build limits.
+
+---
+
 ## Reproducing
 
 ```bash
 git clone <this-repo>
 cd air_pollution_bih
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-notebooks.txt
 ```
 
 `torch-geometric` needs a build matching your torch/CUDA combination — install it per the
 [official instructions](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html)
-rather than from `requirements.txt` alone.
+rather than from `requirements-notebooks.txt` alone.
 
 Then run the notebooks in numeric order. `01_ingest` and `02_dataset` need the raw sources
 (see below); everything from `04_chronos` onward needs only `dataset/shared/` plus the built

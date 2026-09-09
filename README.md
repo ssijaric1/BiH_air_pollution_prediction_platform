@@ -222,7 +222,7 @@ An interactive Streamlit app for exploring the forecasts and the monitoring netw
 ```bash
 pip install -r requirements.txt
 python scripts/prepare_app_data.py
-streamlit run app/app.py
+streamlit run app/Forecasts.py
 ```
 
 Two pages. **Forecast viewer** — pick a station, pollutant and day, and see what each

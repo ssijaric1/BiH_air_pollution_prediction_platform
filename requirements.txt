@@ -1,23 +1,11 @@
-# Core
-numpy>=1.26
+# Dependencies for the Streamlit app (app/app.py).
+#
+# Streamlit Community Cloud installs from this file, at the repository root,
+# so it holds ONLY what the app imports. The modelling stack - torch, chronos,
+# torch-geometric - lives in requirements-notebooks.txt and must not be here:
+# it would blow the Cloud build limits for a dashboard that reads parquet.
+streamlit>=1.40
 pandas>=2.1
-scipy>=1.11
-matplotlib>=3.8
-
-# Excel ingest (.xls / .xlsx sources from FHZ and RHZ)
-openpyxl>=3.1
-xlrd>=2.0
-
-# Chronos / Chronos-2 track  (notebooks/04_chronos, 07_ensemble)
-torch>=2.2
-chronos-forecasting>=1.4
-
-# GNN track  (notebooks/05_gnn)
-# torch-geometric wheels are build-specific - install per the official
-# instructions for your torch/CUDA combination:
-#   https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html
-torch-geometric>=2.5
-
-# Convenience: notebooks were developed in Colab and pull the frozen shared
-# artifacts from Google Drive
-gdown>=5.1
+numpy>=1.26
+plotly>=5.20
+pyarrow>=15.0

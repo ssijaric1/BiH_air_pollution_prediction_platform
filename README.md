@@ -19,6 +19,7 @@ than a seasonal-naive baseline, across all six pollutants and all four seasons.*
 - [Models](#models)
 - [Findings](#findings)
 - [Repository layout](#repository-layout)
+- [The app](#the-app)
 - [Reproducing](#reproducing)
 - [Data availability](#data-availability)
 
@@ -193,6 +194,8 @@ exceedance probability rather than a point forecast.
 │   └── 07_ensemble/     01 prototype → 02 full  ← final results table lives here
 ├── dataset/
 │   └── shared/          Frozen experiment definition (tracked in git)
+├── app/                 Streamlit app (app.py + pages/, data in app/data/)
+├── scripts/             prepare_app_data.py — builds the app's data files
 ├── images/              README figures
 └── docs/REPORT.md       Full technical report
 ```
@@ -212,18 +215,50 @@ exceedance probability rather than a point forecast.
 
 ---
 
+## The app
+
+An interactive Streamlit app for exploring the forecasts and the monitoring network.
+
+```bash
+pip install -r requirements.txt
+python scripts/prepare_app_data.py
+streamlit run app/app.py
+```
+
+Two pages. **Forecast viewer** — pick a station, pollutant and day, and see what each
+model predicted for the next 24 hours against what was actually measured, with the
+10th–90th percentile band, per-hour error, and how that series scores across the whole
+year. **Stations** — the 23 stations on a map, coloured by coverage or by forecast skill,
+with a detail view per station.
+
+`scripts/prepare_app_data.py` builds the small parquet files the app reads. It slims the
+160 MB panel to the evaluation period and casts to float32, giving about 4.5 MB — small
+enough to commit and deploy.
+
+The forecasts themselves come from the final cell of
+`notebooks/07_ensemble/02_ensemble_full.ipynb`, which exports every model's predictions
+to `forecasts.parquet`. Put that file in `results/` and re-run the prepare script. Without
+it the app still runs — the station map works, and the forecast viewer explains what is
+missing.
+
+Dependencies are split deliberately: `requirements.txt` holds only what the app imports,
+so Streamlit Community Cloud can build it; the modelling stack is in
+`requirements-notebooks.txt`.
+
+---
+
 ## Reproducing
 
 ```bash
 git clone <this-repo>
 cd air_pollution_bih
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-notebooks.txt
 ```
 
 `torch-geometric` needs a build matching your torch/CUDA combination — install it per the
 [official instructions](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html)
-rather than from `requirements.txt` alone.
+rather than from `requirements-notebooks.txt` alone.
 
 Then run the notebooks in numeric order. `01_ingest` and `02_dataset` need the raw sources
 (see below); everything from `04_chronos` onward needs only `dataset/shared/` plus the built

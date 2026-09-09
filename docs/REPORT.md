@@ -76,32 +76,164 @@ are permitted as model *input*, and forbidden as scoring *targets*. Without this
 substantial share of the reported accuracy would be models successfully predicting our own
 linear interpolation, which tells us nothing about the models.
 
+---
+
+## 2. Exploratory analysis
+
+Two EDA notebooks sit between the dataset build and the modelling. The first
+(`notebooks/03_eda/eda.ipynb`) characterises the panel and produces the cleaned export. The
+second (`notebooks/03_eda/spatial_eda.ipynb`) is targeted: it exists to answer the specific
+questions the GNN needed answered before any architecture work, and it uses the same frozen
+artifacts and the same masking rules as scoring, so what it measures is what a model would
+actually be trained on.
+
+### 2.1 Coverage, and what the zeros mean
+
+Coverage is deeply uneven, and the first job of the EDA was to establish which zeros are
+missing data and which are missing instruments.
+
+| City | PM10 | PM2.5 | SO₂ | NO₂ | O₃ | CO |
+|---|---:|---:|---:|---:|---:|---:|
+| Brod | 97.0 | 95.1 | 96.2 | 99.0 | 96.9 | 98.3 |
+| Banja Luka | 84.5 | 83.4 | 84.7 | 87.0 | 86.9 | 86.0 |
+| Trebinje | 71.6 | 69.0 | 75.5 | 82.7 | 75.1 | 87.3 |
+| Bihac | 76.8 | 76.7 | 77.0 | 67.9 | 84.0 | 82.4 |
+| Livno | 76.3 | 76.2 | 70.5 | 84.0 | 83.4 | 84.5 |
+| Sarajevo | 75.9 | 36.7 | 74.3 | 79.1 | 37.1 | 28.3 |
+| Doboj | 70.3 | 0.0 | 73.4 | 61.7 | 68.5 | 21.0 |
+| Gacko | 81.4 | 0.0 | 94.3 | 79.7 | 0.0 | 0.0 |
+| Mostar | 52.8 | 52.8 | 56.3 | 51.6 | 41.2 | 58.0 |
+| Prijedor | 49.4 | 47.7 | 71.6 | 65.6 | 51.0 | 63.8 |
+| Ugljevik | 47.2 | 0.0 | 65.9 | 96.7 | 0.0 | 0.0 |
+| Tuzla | 10.7 | 52.4 | 74.7 | 76.4 | 47.1 | 57.7 |
+
+Three findings came out of this, each of which changed a downstream decision:
+
+**Structural zeros.** Doboj has no PM2.5 instrument; Gacko and Ugljevik have no PM2.5, O₃ or CO
+instruments. These are not gaps to impute — the instrument does not exist. Treating them as
+missing data would have produced imputed series with no physical basis.
+
+**City-level figures can be artefacts of aggregation.** Tuzla's 10.7 % PM10 coverage looks like
+a broken sensor. Drilling to station level shows that no Tuzla station except Trnovac measures
+PM10 at all, and Trnovac covers 53.6 % — the city figure is an average over stations measuring
+different things. Similarly, Sarajevo's Ambasada station measures only PM2.5, and nothing else.
+
+**Station-level capability had to be made explicit.** This produced `station_groups.json`, which
+labels every station-pollutant pair `never` / `sparse` / `ok`. The GNN later used these as its
+training partitions instead of running an exhaustive subset search over pollutant combinations,
+which is both cheaper and better grounded.
+
 Coverage after short-gap filling: SO₂ 76.0 %, NO₂ 79.2 %, PM10 62.9 %, O₃ 48.6 %, CO 47.4 %,
-PM2.5 46.2 %.
+PM2.5 46.2 %. The EDA also fitted the PM2.5-from-PM10 ratio that became the `ratio_pm25`
+baseline, and exported the daily Bijeljina series separately, since it is daily rather than
+hourly and cannot join the main panel.
 
-### 1.4 What the coverage analysis revealed
+### 2.2 Do stations actually correlate?
 
-Coverage is deeply uneven and this shapes everything downstream. Some highlights from the EDA:
+Cross-station PM10 correlation, computed on real (non-filled) measurements over the training
+period only, ranges from about 0.9 down to slightly negative. The structure is not uniform:
 
-- **Instrument absence, not data loss.** Doboj has no PM2.5 instrument; Gacko and Ugljevik have
-  no PM2.5, O₃ or CO instruments. These are structural zeros, not gaps to impute.
-- **Station-level specialisation.** The Sarajevo Ambasada station measures *only* PM2.5. Within
-  Tuzla, no station except Trnovac measures PM10 at all — so the city-level PM10 figure of
-  10.7 % is not a broken sensor, it is an artefact of aggregating stations that measure
-  different things.
-- **Best and worst.** Brod is near-complete (95–99 % on every pollutant). Mostar and Prijedor
-  sit near 50 %.
+- **Sarajevo basin stations are tightly coupled.** Ilidza–Otoka 0.90, Ilidza–Vogosca 0.87,
+  Otoka–Vogosca 0.86, Ilijas–Vogosca 0.82.
+- **Isedlo is the exception that proves the rule.** It is a regional background station at
+  969 m, above the basin, and it correlates at roughly 0.0 to −0.06 with its own near
+  neighbours. Physical proximity is not the same as sharing an airshed.
+- **Distant pairs carry little.** Trebinje correlates at 0.00–0.15 with most of the country.
 
-This analysis produced `station_groups.json`, which classifies every station-pollutant pair as
-`never` / `sparse` / `ok`, and which the GNN later used to define its training partitions
-instead of running an exhaustive subset search.
+### 2.3 Correlation versus distance
 
-The EDA also fitted a PM2.5-from-PM10 ratio, later used as a domain-specific baseline
-(`ratio_pm25`).
+Correlation decays with distance, but not smoothly, and it flattens out well before the network
+diameter. The binned trend falls from roughly 0.52 in the closest bin to 0.36 by 50 km, sits
+around 0.30–0.37 through the middle distances, and drops to about 0.15 past 250 km.
+
+This is the single most consequential EDA result, because it invalidated the GNN's original
+edge construction. The model used k-nearest-neighbours with `k=5`; on partitions of only six to
+eight stations, that effectively fully connects the graph, and it gave Trebinje an edge to Banja
+Luka — 280 km apart, correlation near zero — purely to fill a slot. It was replaced with a
+distance threshold plus a minimum-degree fallback so no station ends up isolated.
+
+The ten closest pairs also show why distance alone is not sufficient. They span correlations
+from 0.48 (Otoka–Vijecnica, 5.8 km) to 0.90 (Ilidza–Otoka, 4.7 km). Proximity raises the
+expected correlation; it does not determine it.
+
+### 2.4 Does the `same_type` edge earn its place?
+
+The second edge type links stations sharing a classification (Urbana, Industrijska, Urbano
+pozadinska, and so on). The test had to control for a confound: same-type stations might simply
+be closer together on average, which would make distance the real driver.
+
+| | mean correlation | median | pairs |
+|---|---:|---:|---:|
+| All pairs, different type | 0.348 | 0.354 | 142 |
+| All pairs, same type | 0.384 | 0.361 | 29 |
+| Closer half only, different type | 0.385 | 0.399 | 71 |
+| Closer half only, same type | 0.509 | 0.487 | 14 |
+
+Across all pairs the effect is marginal (0.384 vs. 0.348). Restricted to the closer half of
+distances — where the confound is controlled — the gap widens substantially, to 0.509 vs. 0.385.
+Station type carries real information beyond distance, and the `same_type` edge was kept.
+
+### 2.5 Station identity matters
+
+A Kruskal-Wallis test across stations on PM10 level returns H = 68,879, p ≈ 0. Station identity
+is a very strong determinant of pollution level — this is the country-scale confirmation of an
+earlier Sarajevo-only finding. The practical implication, noted in the notebook, is that
+per-station bias terms (a learned per-node embedding) are likely to help a graph model more than
+simply adding shared capacity.
+
+### 2.6 Seasonal signature varies enormously by station
+
+Winter-mean minus summer-mean PM10, per station, spans a factor that no shared calendar feature
+can represent:
+
+| Station | Δ PM10 (µg/m³) |
+|---|---:|
+| Ilijas | +64.8 |
+| Banja Luka | +59.6 |
+| Otoka | +53.2 |
+| Vogosca | +47.3 |
+| Hadzici | +46.6 |
+| Ilidza | +46.1 |
+| Prijedor | +45.5 |
+| Brod | +30.3 |
+| Bjelave | +29.6 |
+| Bihac | +26.6 |
+| Mostar | +10.8 |
+| Vijecnica | +7.2 |
+| Gacko | +6.7 |
+| Livno | +3.7 |
+| Trebinje | −8.2 |
+| Isedlo | −15.7 |
+
+The range runs from +64.8 to −15.7. Basin stations in the Sarajevo and Banja Luka areas show
+the heating-plus-inversion signature strongly; the coastal-influenced south (Trebinje) and the
+high-altitude background station (Isedlo) run *cleaner* in winter than in summer, reversing the
+sign. A single shared pair of day-of-year sine and cosine features — which is what the GNN used
+— is too coarse to represent a seasonal effect that changes sign across the network. This was
+flagged as a limitation of the current model rather than fixed.
+
+Diurnal profiles were examined for the same reason, testing whether traffic-influenced stations
+show the expected twin rush-hour peaks while background stations stay flat — which would be
+further independent evidence that the `same_type` edge captures something physical.
+
+### 2.7 The premise test
+
+The final section tests the GNN's core premise directly: does a neighbouring station's recent
+past help predict this station's future, beyond what the station's own history already provides?
+Lagged cross-correlation peaking near lag 0 and decaying quickly indicates real, learnable
+spatial structure; a flat profile would mean neighbours add little and a per-station model is
+the better fit.
+
+The answer, corroborated later by the ensemble's spatial diagnostic (+2.1 % from neighbour
+covariates, section 4.4), is that the structure exists but is modest. Notably, this EDA was
+explicitly written to be able to return a negative answer — the summary cell frames each result
+as a decision that could go either way, including dropping the `same_type` edge entirely if it
+failed the matched-distance test. That framing is why the +2.1 % result later in the project was
+reported as marginal rather than presented as a success.
 
 ---
 
-## 2. The evaluation protocol
+## 3. The evaluation protocol
 
 `notebooks/02_dataset/shared_setup.ipynb` freezes the entire experimental design **before** any
 model was trained, and writes it to `dataset/shared/`. Three independent model tracks then
@@ -149,9 +281,9 @@ diurnal cycle than the rest.
 
 ---
 
-## 3. Models
+## 4. Models
 
-### 3.1 Chronos and Chronos-2 (`notebooks/04_chronos/`)
+### 4.1 Chronos and Chronos-2 (`notebooks/04_chronos/`)
 
 Three notebooks, escalating in scope.
 
@@ -208,7 +340,7 @@ By season: spring 0.643, winter 0.729, summer 0.803, autumn 0.890. By station, t
 `persistence_t24` ranges from about 27 % (Tuzla-Trnovac) to about 34 % (Sarajevo Bjelave) —
 remarkably uniform given how differently covered these stations are.
 
-### 3.2 Spatial GNN (`notebooks/05_gnn/`, with `notebooks/03_eda/spatial_eda.ipynb`)
+### 4.2 Spatial GNN (`notebooks/05_gnn/`, with `notebooks/03_eda/spatial_eda.ipynb`)
 
 The GNN track was preceded by a dedicated spatial EDA, and this was the right order to do it in.
 That EDA asked whether spatial structure exists at all before a graph model was built to
@@ -240,7 +372,7 @@ WQL of 0.0649 against Chronos-2's 0.1445, better by more than a factor of two. I
 downstream use is the probability of exceeding a regulatory threshold rather than a point
 forecast, that difference is more valuable than the MASE gap suggests.
 
-### 3.3 xLSTM (`notebooks/06_xlstm/`) — a negative result
+### 4.3 xLSTM (`notebooks/06_xlstm/`) — a negative result
 
 Six iterations, kept in full, including the diagnostic notebook. The outcome:
 
@@ -265,7 +397,7 @@ because a reader should be able to see what was tried. It is excluded from the r
 because a model that diverges on five of six pollutants is not a model whose average you can
 meaningfully quote.
 
-### 3.4 Ensemble (`notebooks/07_ensemble/`)
+### 4.4 Ensemble (`notebooks/07_ensemble/`)
 
 Two notebooks: a prototype and the full version that produces the final comparison table.
 
@@ -291,7 +423,7 @@ selected after seeing the evaluation year.
 
 ---
 
-## 4. Final results
+## 5. Final results
 
 All models, all 31,688 frozen 2024 windows, 98 station-pollutant series:
 
@@ -333,7 +465,7 @@ over-claim on a difference the data cannot support.
 
 ---
 
-## 5. Findings
+## 6. Findings
 
 **1. Zero-shot foundation models are a strong default for this problem.** Chronos-2 beat a
 purpose-built spatial GNN and a purpose-built xLSTM, without training on the target series,
@@ -370,7 +502,7 @@ is more useful with them in it.
 
 ---
 
-## 6. Limitations and future work
+## 7. Limitations and future work
 
 - **One held-out year.** All conclusions rest on 2024. Differences under ~1 % cannot be
   resolved with a single year, which is exactly the situation among the three Chronos variants.
@@ -406,7 +538,7 @@ is more useful with them in it.
 | `notebooks/02_dataset/build_dataset.ipynb` | Column mapping, range clipping, dedup, gap-free reindex, source validation → `bih_hourly.csv` |
 | `notebooks/02_dataset/shared_setup.ipynb` | Freezes split, windows, station geometry, baselines, `bih_shared.py` |
 | `notebooks/03_eda/eda.ipynb` | Coverage analysis, instrument-absence findings, PM2.5/PM10 ratio, cleaned export |
-| `notebooks/03_eda/spatial_eda.ipynb` | Correlation vs. distance, `same_type` value, diurnal/seasonal profiles, lagged cross-correlation → graph design |
+| `notebooks/03_eda/spatial_eda.ipynb` | Cross-station correlation, correlation vs. distance, matched-distance `same_type` test, Kruskal-Wallis on station identity, per-station diurnal and seasonal profiles, lagged cross-correlation → graph design |
 | `notebooks/04_chronos/01_chronos_zeroshot.ipynb` | Univariate zero-shot Chronos |
 | `notebooks/04_chronos/02_chronos_all_pollutants.ipynb` | All six pollutants, model ablation, context-coverage diagnostic |
 | `notebooks/04_chronos/03_chronos2_weather.ipynb` | Chronos-2 multivariate + weather covariates — headline model |

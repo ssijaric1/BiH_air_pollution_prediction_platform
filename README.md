@@ -192,10 +192,10 @@ downstream use is threshold exceedance probability rather than a point forecast.
 │   │                    shared_setup.ipynb   → freezes split, windows, baselines
 │   ├── 03_eda/          eda.ipynb            → coverage, PM2.5-from-PM10 ratio
 │   │                    spatial_eda.ipynb    → correlation vs. distance, graph design
-│   ├── 04_chronos/      01 zero-shot → 02 all pollutants → 03 Chronos-2 + weather
+│   ├── 04_chronos/      01 zero-shot → 02 all pollutants
 │   ├── 05_gnn/          ConvLSTM → GAT spatial model
 │   ├── 06_xlstm/        Six iterations + diagnostics (negative result)
-│   └── 07_ensemble/     01 prototype → 02 full  ← final results table lives here
+│   └── 07_ensemble/     ← final results table lives here
 ├── dataset/
 │   └── shared/          Frozen experiment definition (tracked in git)
 ├── app/                 Streamlit app (app.py + pages/, data in app/data/)

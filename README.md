@@ -122,7 +122,7 @@ Baselines, for reference (`dataset/shared/baseline_metrics.csv`):
 
 ## Models
 
-### Chronos / Chronos-2 — `notebooks/04_chronos/`
+### Chronos
 
 Zero-shot forecasting with Amazon's Chronos time-series foundation models, run in three stages:
 univariate zero-shot → all six pollutants → **Chronos-2 multivariate with weather covariates**,
@@ -130,23 +130,18 @@ which is the version that produced the headline result. No training on the targe
 
 ![Example forecast](images/chronos2_example_forecast.png)
 
-### Spatial GNN — `notebooks/05_gnn/`
+### Spatial GNN
 
 ConvLSTM → Dense/ReLU → GAT → Dense/ReLU over a station graph with two edge types: `close_to`
 (distance-thresholded, not k-NN) and `same_type` (shared station classification — urban,
 industrial, urban-background…). The distance threshold came directly from the EDA below.
 Trained per station-group partition, PM10 and PM2.5 only.
 
-### xLSTM — `notebooks/06_xlstm/`
+### xLSTM 
 
-Six iterations, and an honest negative result. PM2.5 trained cleanly and beat every baseline
-(MASE 0.845 vs. 1.049 for `persistence_t24`); every other pollutant diverged, with mean MASE
-running into the thousands while medians stayed respectable (0.81–0.91 overall). That gap
-between mean and median is the whole story: a minority of windows blow up completely. The
-track is included in full — diagnostics and all — but is not in the results table, because a
-model that is unstable on five of six pollutants is not a model you report.
+Across six training iterations, xLSTM produced a negative result for five of six pollutants. Only PM2.5 converged reliably, outperforming the persistence_t24 baseline (MASE 0.845 vs. 1.049). For the remaining pollutants, mean MASE reached values in the thousands despite median MASE remaining within a reasonable range (0.81–0.91), indicating that a small subset of forecast windows produced extreme errors that dominated the aggregate metric. This instability is attributed to the exponential gating mechanism in the xLSTM architecture, which is sensitive to distributional shifts across heterogeneous time series. The full implementation and associated diagnostics are retained in the repository for reproducibility; however, results for the affected pollutants are excluded from the final comparison table, as the model did not demonstrate consistent convergence across the majority of the target variables.
 
-### Ensemble — `notebooks/07_ensemble/`
+### Ensemble 
 
 Blends Chronos-2 with the GNN, with blend weights fitted per pollutant and heating regime on
 2023 and evaluated on 2024. Also contains the spatial diagnostic that justified the GNN track

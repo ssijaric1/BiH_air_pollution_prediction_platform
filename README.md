@@ -143,9 +143,7 @@ Across six training iterations, xLSTM produced a negative result for five of six
 
 ### Ensemble 
 
-Blends Chronos-2 with the GNN, with blend weights fitted per pollutant and heating regime on
-2023 and evaluated on 2024. Also contains the spatial diagnostic that justified the GNN track
-in the first place.
+This module integrates the temporal forecasts of Chronos-2 with the spatial predictions of the GNN through a weighted blending scheme, with blend weights fitted independently for each pollutant and heating regime. Weight fitting is performed on 2023 data, with evaluation conducted exclusively on the held-out 2024 period to ensure an unbiased estimate of blended performance. This module also includes the inter-station spatial correlation analysis that provided the initial empirical justification for pursuing the GNN track, demonstrating sufficient spatial dependence among monitoring stations to warrant a graph-based modeling approach.
 
 ---
 

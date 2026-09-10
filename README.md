@@ -48,14 +48,14 @@ MASE 1.0 is the in-context seasonal-naive forecast.
 
 They are separated by 0.4–0.8 %, which is within the noise
 of a single held-out year. The neighbour-covariate variant `chronos2_nbr` wins on 2024 but was
-*worse* than plain `chronos2` on the 2023 tuning year (0.7297 vs. 0.7294) — a sign flip on a
+*worse* than plain `chronos2` on the 2023 tuning year (0.7297 vs. 0.7294), a sign flip on a
 0.03 % gap, which is what noise looks like. The `ensemble` is the only one of the three whose
 advantage was earned honestly out-of-sample: its blend weights were fitted on 2023 and *then*
 beat their own base on 2024. Treat "Chronos-2" as the result and the 0.759/0.762/0.765 spread
 as a tie.
 
-Chronos-2 wins on **every** cut of the data — all six pollutants, both heating and non-heating
-regimes, all four seasons — which is stronger evidence than the headline number alone.
+Chronos-2 wins on **every** cut of the data: all six pollutants, both heating and non-heating
+regimes, all four seasons, which is stronger evidence than the headline number alone.
 
 ### Where the GNN earns its place
 

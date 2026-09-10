@@ -156,7 +156,7 @@ Chronos-2 reaches MASE 0.765 with no training on these series at all, against 1.
 seasonal persistence. The gain is consistent across every pollutant, season and regime.
 
 **2. Spatial signal exists, but it is small.** Neighbour-station covariates improve Chronos by
-2.1 % on the Sarajevo diagnostic set — real, but marginal:
+2.1 % on the Sarajevo diagnostic set:
 
 ![Correlation vs distance](images/correlation_vs_distance.png)
 

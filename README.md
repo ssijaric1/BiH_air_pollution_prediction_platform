@@ -6,7 +6,7 @@ To go to the app directly, click [here](https://bihairpollutionpredictionplatfor
 Herzegovina, comparing a time-series foundation model (Chronos-2), a spatial graph neural
 network, an xLSTM, and classical persistence baselines on a single frozen evaluation protocol.
 
-**Headline result: Chronos-2 forecasts 24 hours ahead at MASE 0.759–0.765, roughly 29 % better
+**Key result: Chronos-2 forecasts 24 hours ahead at MASE 0.759–0.765, roughly 29 % better
 than a seasonal-naive baseline, across all six pollutants and all four seasons.**
 
 ![Model comparison](images/model_comparison.png)

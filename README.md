@@ -60,10 +60,10 @@ regimes, all four seasons, which is stronger evidence than the headline number a
 ### Where the GNN earns its place
 
 The GNN loses clearly on point accuracy (MASE 0.935 vs. 0.765) but has by far the best
-**weighted quantile loss** — 0.0649 against 0.1445 on an earlier run, i.e. much
+**weighted quantile loss**: 0.0649 against 0.1445 on an earlier run, i.e. much
 better-calibrated uncertainty, though that figure has not been recomputed for the current
 run. Its MASE also moves by about 0.02 between training runs, so treat it as approximate. It also
-only covers PM10 and PM2.5, so in the blend it can only affect those two pollutants — the
+only covers PM10 and PM2.5, so in the blend it can only affect those two pollutants, the
 ensemble's CO / NO₂ / O₃ / SO₂ numbers are identical to plain Chronos-2 by construction.
 
 ---
@@ -82,14 +82,14 @@ Two national networks, merged from raw Excel exports into a single hourly panel:
 
 ![Stations](images/station_map.png)
 
-Coverage is uneven, and this drives most of the design decisions downstream — Tuzla records
+Coverage is uneven, and this drives most of the design decisions downstream. Tuzla records
 PM10 for only 11 % of hours, Gacko and Ugljevik never record PM2.5, O₃ or CO at all:
 
 ![Coverage](images/coverage_by_city.png)
 
 Gaps of up to 3 hours were linearly interpolated during the dataset build, and every
 interpolated point is flagged in a `<pollutant>_filled` column. **Filled values are allowed as
-model input but never scored** — otherwise the metrics would be measuring our own interpolation
+model input but never scored**, otherwise the metrics would be measuring our own interpolation
 rather than the model.
 
 ---
@@ -99,14 +99,14 @@ rather than the model.
 The protocol is frozen in `dataset/shared/` before any model was trained, and all three model
 tracks import the same module (`bih_shared.py`) so the numbers are comparable by construction.
 
-- **Split** — train 2021-01-01 → 2023-12-31; evaluate on 2024. 2025 is excluded entirely
+- **Split**: train 2021-01-01 → 2023-12-31; evaluate on 2024. 2025 is excluded entirely
   (FHZ has no 2025 data, and an RHZ-only year is not comparable).
-- **Task** — 24-hour horizon, forecast origins at 00:00, 24-hour stride.
-- **Masking** — score a point only where the value is present *and* not interpolated. A window
+- **Task**: 24-hour horizon, forecast origins at 00:00, 24-hour stride.
+- **Masking**: score a point only where the value is present *and* not interpolated. A window
   needs ≥ 12 real target hours to be included.
-- **Metrics** — MAE and RMSE per pollutant in native units; MASE (denominator = in-context
+- **Metrics**: MAE and RMSE per pollutant in native units; MASE (denominator = in-context
   seasonal-naive MAE at lag 24) as the only cross-pollutant summary.
-- **Windows** — 31,688 frozen windows across 98 station–pollutant series, listed explicitly in
+- **Windows**: 31,688 frozen windows across 98 station–pollutant series, listed explicitly in
   `dataset/shared/eval_windows.csv`.
 
 Baselines, for reference (`dataset/shared/baseline_metrics.csv`):
@@ -135,7 +135,7 @@ which is the version that produced the headline result. No training on the targe
 ### Spatial GNN
 
 ConvLSTM → Dense/ReLU → GAT → Dense/ReLU over a station graph with two edge types: `close_to`
-(distance-thresholded, not k-NN) and `same_type` (shared station classification — urban,
+(distance-thresholded, not k-NN) and `same_type` (shared station classification: urban,
 industrial, urban-background…). The distance threshold came directly from the EDA below.
 Trained per station-group partition, PM10 and PM2.5 only.
 
@@ -172,7 +172,7 @@ and does best in spring (0.643 / 0.850). The heating season is harder than the n
 season for every model except the GNN, which reverses it.
 
 **5. Uncertainty and point accuracy come apart.** The GNN is the worst of the learned models on
-MASE and, on an earlier run, the best on WQL by a factor of two — worth knowing if the
+MASE and, on an earlier run, the best on WQL by a factor of two, worth knowing if the
 downstream use is threshold exceedance probability rather than a point forecast.
 
 ---
@@ -222,11 +222,13 @@ pip install -r requirements.txt
 python scripts/prepare_app_data.py
 streamlit run app/Forecasts.py
 ```
-
-Two pages. **Forecast viewer** — pick a station, pollutant and day, and see what each
+There are two pages.
+**Forecast viewer** — pick a station, pollutant and day, and see what each
 model predicted for the next 24 hours against what was actually measured, with the
 10th–90th percentile band, per-hour error, and how that series scores across the whole
-year. **Stations** — the 23 stations on a map, coloured by coverage or by forecast skill,
+year.
+
+**Stations** — the 23 stations on a map, coloured by coverage or by forecast skill,
 with a detail view per station.
 
 `scripts/prepare_app_data.py` builds the small parquet files the app reads. It slims the
@@ -236,7 +238,7 @@ enough to commit and deploy.
 The forecasts themselves come from the final cell of
 `notebooks/07_ensemble/02_ensemble_full.ipynb`, which exports every model's predictions
 to `forecasts.parquet`. Put that file in `results/` and re-run the prepare script. Without
-it the app still runs — the station map works, and the forecast viewer explains what is
+it the app still runs, the station map works, and the forecast viewer explains what is
 missing.
 
 Dependencies are split deliberately: `requirements.txt` holds only what the app imports,

@@ -1,5 +1,7 @@
 # Air Quality Forecasting for Bosnia and Herzegovina
 
+To go to the app directly, click [here](https://bihairpollutionpredictionplatform.streamlit.app/).
+
 24-hour-ahead forecasting of six air pollutants across 23 monitoring stations in Bosnia and
 Herzegovina, comparing a time-series foundation model (Chronos-2), a spatial graph neural
 network, an xLSTM, and classical persistence baselines on a single frozen evaluation protocol.

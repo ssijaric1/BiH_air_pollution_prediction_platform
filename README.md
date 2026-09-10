@@ -222,7 +222,8 @@ pip install -r requirements.txt
 python scripts/prepare_app_data.py
 streamlit run app/Forecasts.py
 ```
-There are two pages.
+There are two pages:
+
 **Forecast viewer** — pick a station, pollutant and day, and see what each
 model predicted for the next 24 hours against what was actually measured, with the
 10th–90th percentile band, per-hour error, and how that series scores across the whole

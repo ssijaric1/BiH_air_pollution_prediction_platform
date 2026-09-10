@@ -247,26 +247,6 @@ Dependencies are split deliberately: `requirements.txt` holds only what the app 
 so Streamlit Community Cloud can build it; the modelling stack is in
 `requirements-notebooks.txt`.
 
-### Deploying it
-
-The repository is set up to deploy as-is. Everything the app reads lives in `app/data/`
-and is committed, so there is nothing to upload separately.
-
-1. Push to GitHub.
-2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
-3. **Create app** → **Deploy a public app from a repo**, then set:
-   - Repository: your fork of this repo
-   - Branch: `main`
-   - Main file path: **`app/Forecasts.py`**
-4. Deploy. The first build takes a couple of minutes.
-
-Two details that matter. The theme lives in `.streamlit/config.toml` at the **repository
-root**, not next to the app — Streamlit reads project config relative to the working
-directory, which on Cloud is the repo root. And `requirements.txt` must stay app-only;
-adding `torch` would exceed the free tier's build limits.
-
----
-
 ## Reproducing
 
 ```bash

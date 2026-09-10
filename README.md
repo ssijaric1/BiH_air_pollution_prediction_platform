@@ -31,7 +31,7 @@ than a seasonal-naive baseline, across all six pollutants and all four seasons.*
 
 All models are scored on the **same 31,688 held-out 2024 windows** spanning 98
 station–pollutant series. MASE is the only cross-pollutant summary used, because CO is measured
-in mg/m³ and everything else in µg/m³ — averaging MAE across pollutants would be meaningless.
+in mg/m³ and everything else in µg/m³. averaging MAE across pollutants would be meaningless.
 MASE 1.0 is the in-context seasonal-naive forecast.
 
 | Model | MASE | MAE | WQL | vs. `persistence_t24` |
@@ -44,7 +44,9 @@ MASE 1.0 is the in-context seasonal-naive forecast.
 | `persistence_t24` — value 24 h ago (baseline) | 1.0766 | 10.440 | — | 0 |
 | `persistence_last` — last observed value | 1.2823 | 12.244 | — | −19.1 % |
 
-**How to read the top three rows.** They are separated by 0.4–0.8 %, which is within the noise
+**How to read the top three rows:**
+
+They are separated by 0.4–0.8 %, which is within the noise
 of a single held-out year. The neighbour-covariate variant `chronos2_nbr` wins on 2024 but was
 *worse* than plain `chronos2` on the 2023 tuning year (0.7297 vs. 0.7294) — a sign flip on a
 0.03 % gap, which is what noise looks like. The `ensemble` is the only one of the three whose

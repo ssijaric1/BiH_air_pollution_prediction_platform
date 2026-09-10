@@ -194,14 +194,13 @@ downstream use is threshold exceedance probability rather than a point forecast.
 │   │                    spatial_eda.ipynb    → correlation vs. distance, graph design
 │   ├── 04_chronos/      01 zero-shot → 02 all pollutants
 │   ├── 05_gnn/          ConvLSTM → GAT spatial model
-│   ├── 06_xlstm/        Six iterations + diagnostics (negative result)
+│   ├── 06_xlstm/        xlstm 
 │   └── 07_ensemble/     ← final results table lives here
 ├── dataset/
 │   └── shared/          Frozen experiment definition (tracked in git)
 ├── app/                 Streamlit app (app.py + pages/, data in app/data/)
 ├── scripts/             prepare_app_data.py — builds the app's data files
 ├── images/              README figures
-└── docs/REPORT.md       Full technical report
 ```
 
 `dataset/shared/` is the contract between the three model tracks:
